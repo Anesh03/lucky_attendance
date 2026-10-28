@@ -117,8 +117,26 @@
     table.matrix th { background: #ffe699; color: #000; }
     table.matrix th.idc { background: #8ea9db; }
     table.matrix td.name { text-align: left; font-weight: 600; background: #fff; }
-    table.matrix td.has { background: #e6fffa; font-weight: 600; cursor: help; }
+    table.matrix td.has { background: #e6fffa; font-weight: 600; cursor: pointer; }
     table.matrix td.tot { background: #a9d08e; font-weight: 800; }
+
+    /* ===== MATRIX CRUD (added) ===== */
+    table.matrix td[data-d] { cursor: pointer; }
+    table.matrix td[data-d]:hover { box-shadow: inset 0 0 0 2px #3182ce; }
+    .mx-edit-btn { color: #2b6cb0; cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 3px; display: inline-block; }
+    .mx-edit-btn:hover { background: #bee3f8; }
+    .mx-card { background: #fff; padding: 22px; border-radius: 8px; width: 640px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,.3); color: #2d3748; }
+    .mx-card h3 { color: #1a365d; margin-bottom: 4px; font-size: 17px; }
+    .mx-card h3 small { color: #718096; font-weight: 600; font-size: 12px; }
+    .mx-card label { font-size: 11px; font-weight: 700; color: #4a5568; display: block; margin-bottom: 2px; }
+    .mx-card .admin-input { width: 100%; }
+    .mx-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px; background: #f7fafc; }
+    .mx-new { background: #fffaf0; border: 1px solid #ecc94b; border-radius: 6px; padding: 10px; margin-top: 12px; }
+    .mx-new h4 { color: #b7791f; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; }
+    .mx-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .mx-actions { display: flex; gap: 6px; }
+    .mx-actions button { padding: 7px 10px; }
+    @media (max-width: 600px) { .mx-row { grid-template-columns: 1fr; } }
 
     /* ================= PRINT CONFIGURATION ================= */
     @media print {
@@ -145,6 +163,11 @@
       <button id="authBtn" onclick="submitAuth()">Login</button>
       <div id="authError" class="auth-error">Incorrect Username or Password.</div>
     </div>
+  </div>
+
+  <!-- ================= MATRIX CRUD MODAL (added) ================= -->
+  <div id="mxModal" class="auth-overlay" style="display:none;z-index:100001;" onclick="if(event.target===this) mxClose()">
+    <div class="mx-card" id="mxBody"></div>
   </div>
 
   <div id="toast">Data Saved Successfully!</div>
@@ -347,12 +370,15 @@
             <option value="days_desc">Highest Attendance (Days)</option>
           </select>
         </div>
-        <div style="margin-left:auto; display:flex; gap:8px;">
+        <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-success" onclick="openMxNew()">+ Add Entry</button>
+          <button class="btn-danger" onclick="mxClearMonth()">🗑 Clear Month</button>
           <button class="btn-warning" onclick="exportLocMatrixExcel()">📊 Export True .xlsx</button>
           <button class="btn-primary" onclick="window.print()">🖨️ Print / Save PDF</button>
         </div>
       </div>
       <div style="font-size:12px;color:#4a5568;margin-top:8px;">Each cell shows the location. Hover a cell to see the work done there.</div>
+      <div style="font-size:12px;color:#744210;font-weight:600;margin-top:4px;">✏️ Click any cell (filled or empty) to Add / Edit / Delete that day's entries. Use ✏️ / ✕ at the start of a row to rename or delete an employee for this month, and ✕ on a day header to delete that whole day.</div>
     </div>
     <div class="sheet"><div id="matrixTable"></div></div>
   </div>
@@ -1428,30 +1454,231 @@
          locSel.innerHTML = `<option value="ALL">All Locations</option>` + allLocs.map(l => `<option value="${esc(l)}" ${l===curLoc?'selected':''}>${esc(l)}</option>`).join("");
       }
 
-      if (!list.length) { box.innerHTML = `<div style="padding:20px;text-align:center;">No records match your filters for this month.</div>`; return; }
+      if (!list.length) { box.innerHTML = `<div style="padding:20px;text-align:center;">No records match your filters for this month. Use <b>+ Add Entry</b> to create one.</div>`; return; }
 
       const locQ = document.getElementById("mxFilterLoc").value;
       
-      let h = `<table class="matrix"><thead><tr><th class="idc">S No.</th><th class="idc">Name</th><th class="idc">Designation</th>`;
-      for (let d = 1; d <= days; d++) h += `<th>${d}</th>`;
+      let h = `<table class="matrix"><thead><tr><th class="idc no-print">Action</th><th class="idc">S No.</th><th class="idc">Name</th><th class="idc">Designation</th>`;
+      for (let d = 1; d <= days; d++) h += `<th>${d}<span class="no-print col-del" title="Delete this whole day" onclick="mxDelDay(${d})">✕</span></th>`;
       h += `<th style="background:#a9d08e">Days Logged</th></tr></thead><tbody>`;
       
       list.forEach((e, i) => {
-        h += `<tr><td>${i + 1}</td><td class="name">${esc(e.name)}</td><td class="name">${esc(e.role)}</td>`;
+        h += `<tr><td class="no-print" style="white-space:nowrap;">
+          <span class="mx-edit-btn" data-n="${esc(e.name)}" data-r="${esc(e.role)}" onclick="mxEditEmp(this)" title="Edit name / designation">✏️</span>
+          <span class="del-btn" data-n="${esc(e.name)}" data-r="${esc(e.role)}" onclick="mxDelEmp(this)" title="Delete employee for this month">✕</span></td>
+          <td>${i + 1}</td><td class="name">${esc(e.name)}</td><td class="name">${esc(e.role)}</td>`;
         for (let d = 1; d <= days; d++) {
           const items = e.days[d];
+          const attrs = `data-n="${esc(e.name)}" data-r="${esc(e.role)}" data-d="${d}" onclick="openMxCell(this)"`;
           if (items) {
             const locs = [...new Set(items.map(x => x.location))].join(" / ");
             const tip = items.map(x => `${x.location}: ${x.work || x.project}`).join("\n");
             let bg = (locQ !== "ALL" && items.some(x => x.location === locQ)) ? "background:#c6f6d5;" : "";
-            h += `<td class="has" style="${bg}" title="${esc(tip)}">${esc(locs)}</td>`;
+            h += `<td class="has" ${attrs} style="${bg}" title="${esc(tip)}">${esc(locs)}</td>`;
           } else {
-            h += `<td></td>`;
+            h += `<td ${attrs} title="Click to add entry"></td>`;
           }
         }
         h += `<td class="tot">${e.tot}</td></tr>`;
       });
       box.innerHTML = h + `</tbody></table>`;
+    }
+
+    // ================= MATRIX CRUD (ADDED) =================
+    let mxCtx = null; // { name, role, date } when a cell popup is open
+
+    function mxClose() {
+      document.getElementById("mxModal").style.display = "none";
+      mxCtx = null;
+    }
+
+    // Save + refresh everything that depends on the location log
+    function mxAfterChange() {
+      saveLocLog();
+      refreshLocLists();
+      ["mxFilterTrade", "mxFilterLoc"].forEach(id => document.getElementById(id).dataset.month = "");
+      renderLocMatrix();
+    }
+
+    function mxRecs() {
+      return (locLog[mxCtx.date] || []).filter(x =>
+        x.name.toLowerCase() === mxCtx.name.toLowerCase() &&
+        x.role.toLowerCase() === mxCtx.role.toLowerCase());
+    }
+
+    // ---- Cell popup: list / edit / delete / add entries for one employee on one day ----
+    function openMxCell(el) {
+      const mk = document.getElementById("mxMonth").value;
+      if (!mk) { alert("Select a month first."); return; }
+      mxCtx = { name: el.dataset.n, role: el.dataset.r, date: `${mk}-${String(el.dataset.d).padStart(2, "0")}` };
+      renderMxModal();
+      document.getElementById("mxModal").style.display = "flex";
+    }
+
+    function renderMxModal() {
+      if (!mxCtx) return;
+      const recs = mxRecs();
+      let h = `<h3>${esc(mxCtx.name)} <small>(${esc(mxCtx.role)})</small></h3>
+        <div class="stat">📅 ${fmtDate(mxCtx.date)} — ${recs.length} entr${recs.length === 1 ? "y" : "ies"}</div>`;
+      if (!recs.length) h += `<div style="font-size:12px;color:#718096;margin-bottom:8px;">No entries for this day yet. Add one below.</div>`;
+      recs.forEach(r => {
+        h += `<div class="mx-row">
+          <div><label>Location</label><input class="admin-input" id="mxl_${r.id}" value="${esc(r.location)}"></div>
+          <div><label>Project</label><input class="admin-input" id="mxp_${r.id}" value="${esc(r.project)}"></div>
+          <div><label>Work / Task</label><input class="admin-input" id="mxw_${r.id}" value="${esc(r.work)}"></div>
+          <div class="mx-actions">
+            <button class="btn-success" onclick="mxSaveRec('${r.id}')">💾</button>
+            <button class="btn-danger" onclick="mxDelRec('${r.id}')">🗑</button>
+          </div></div>`;
+      });
+      h += `<div class="mx-new"><h4>+ Add another entry for this day</h4>
+        <div class="mx-grid2">
+          <div><label>Location *</label><input class="admin-input" id="mxNewLoc" placeholder="e.g. Mine office"></div>
+          <div><label>Project</label><input class="admin-input" id="mxNewProj"></div>
+        </div>
+        <div><label>Work / Task</label><input class="admin-input" id="mxNewWork" style="margin-bottom:8px;"></div>
+        <button class="btn-primary" onclick="mxAddRec()">+ Add Entry</button></div>
+        <div class="btn-row" style="margin-top:14px;justify-content:space-between;">
+          <button class="btn-danger" onclick="mxDelCell()" ${recs.length ? "" : "disabled style='opacity:.4;cursor:not-allowed'"}>🗑 Delete All For This Day</button>
+          <button class="btn-warning" onclick="mxClose()">Close</button>
+        </div>`;
+      document.getElementById("mxBody").innerHTML = h;
+    }
+
+    function mxSaveRec(id) {
+      const rec = (locLog[mxCtx.date] || []).find(x => x.id === id);
+      if (!rec) return;
+      const loc = document.getElementById("mxl_" + id).value.trim();
+      if (!loc) { alert("Location is required."); return; }
+      rec.location = loc;
+      rec.project = document.getElementById("mxp_" + id).value.trim();
+      rec.work = document.getElementById("mxw_" + id).value.trim();
+      mxAfterChange(); renderMxModal(); showToast("Entry updated.");
+    }
+
+    function mxDelRec(id) {
+      if (!confirm("Delete this entry?")) return;
+      locLog[mxCtx.date] = (locLog[mxCtx.date] || []).filter(x => x.id !== id);
+      if (!locLog[mxCtx.date].length) delete locLog[mxCtx.date];
+      mxAfterChange();
+      if (mxRecs().length) renderMxModal(); else mxClose();
+      showToast("Entry deleted.");
+    }
+
+    function mxAddRec() {
+      const loc = document.getElementById("mxNewLoc").value.trim();
+      if (!loc) { alert("Location is required."); return; }
+      const project = document.getElementById("mxNewProj").value.trim();
+      const work = document.getElementById("mxNewWork").value.trim();
+      if (!locLog[mxCtx.date]) locLog[mxCtx.date] = [];
+      locLog[mxCtx.date].push({ id: newId(), name: mxCtx.name, role: mxCtx.role, project, location: loc, work: work || project });
+      mxAfterChange(); renderMxModal(); showToast("Entry added.");
+    }
+
+    function mxDelCell() {
+      const n = mxRecs().length;
+      if (!n || !confirm(`Delete all ${n} entr${n === 1 ? "y" : "ies"} for ${mxCtx.name} on ${fmtDate(mxCtx.date)}?`)) return;
+      locLog[mxCtx.date] = (locLog[mxCtx.date] || []).filter(x => !(
+        x.name.toLowerCase() === mxCtx.name.toLowerCase() && x.role.toLowerCase() === mxCtx.role.toLowerCase()));
+      if (!locLog[mxCtx.date].length) delete locLog[mxCtx.date];
+      mxAfterChange(); mxClose(); showToast("Day cleared.");
+    }
+
+    // ---- Toolbar: add a brand-new entry (any employee / any date) ----
+    function openMxNew() {
+      const mk = document.getElementById("mxMonth").value || new Date().toISOString().slice(0, 7);
+      const today = new Date().toISOString().split("T")[0];
+      const defDate = today.startsWith(mk) ? today : mk + "-01";
+      mxCtx = null;
+      document.getElementById("mxBody").innerHTML = `<h3>➕ Add New Matrix Entry</h3>
+        <div class="stat">Creates a Location Record (shown in Matrix, Records and exports).</div>
+        <div class="mx-grid2">
+          <div><label>Date *</label><input type="date" class="admin-input" id="mnDate" value="${defDate}"></div>
+          <div><label>Employee *</label><input class="admin-input" id="mnName" list="nameList" placeholder="Employee name"></div>
+          <div><label>Designation</label><input class="admin-input" id="mnRole" list="roleList" placeholder="e.g. Mason"></div>
+          <div><label>Location *</label><input class="admin-input" id="mnLoc" placeholder="e.g. Mine office"></div>
+          <div><label>Project</label><input class="admin-input" id="mnProj"></div>
+          <div><label>Work / Task</label><input class="admin-input" id="mnWork"></div>
+        </div>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn-success" onclick="mxSaveNew()">💾 Save Entry</button>
+          <button class="btn-warning" onclick="mxClose()">Cancel</button>
+        </div>`;
+      document.getElementById("mxModal").style.display = "flex";
+    }
+
+    function mxSaveNew() {
+      const date = document.getElementById("mnDate").value;
+      const name = document.getElementById("mnName").value.trim();
+      const role = document.getElementById("mnRole").value.trim() || "Staff";
+      const location = document.getElementById("mnLoc").value.trim();
+      const project = document.getElementById("mnProj").value.trim();
+      const work = document.getElementById("mnWork").value.trim();
+      if (!date || !name || !location) { alert("Date, Employee and Location are required."); return; }
+      if (!locLog[date]) locLog[date] = [];
+      locLog[date].push({ id: newId(), name, role, project, location, work: work || project });
+      // jump the matrix to the month of the new entry so it is visible
+      document.getElementById("mxMonth").value = date.slice(0, 7);
+      mxAfterChange(); mxClose();
+      showToast(`${name} added for ${fmtDate(date)}`);
+    }
+
+    // ---- Row actions: rename / re-designate or delete an employee for the month ----
+    function mxEditEmp(el) {
+      const mk = document.getElementById("mxMonth").value;
+      const oldN = el.dataset.n, oldR = el.dataset.r;
+      const newN = prompt("Edit EMPLOYEE NAME (applies to all entries this month):", oldN);
+      if (newN === null || !newN.trim()) return;
+      const newR = prompt("Edit DESIGNATION (applies to all entries this month):", oldR);
+      if (newR === null || !newR.trim()) return;
+      let count = 0;
+      Object.keys(locLog).forEach(d => {
+        if (!d.startsWith(mk)) return;
+        locLog[d].forEach(r => {
+          if (r.name.toLowerCase() === oldN.toLowerCase() && r.role.toLowerCase() === oldR.toLowerCase()) {
+            r.name = newN.trim(); r.role = newR.trim(); count++;
+          }
+        });
+      });
+      mxAfterChange(); showToast(`${count} entr${count === 1 ? "y" : "ies"} updated.`);
+    }
+
+    function mxDelEmp(el) {
+      const mk = document.getElementById("mxMonth").value;
+      const n = el.dataset.n, r = el.dataset.r;
+      if (!confirm(`Delete ALL location entries of ${n} (${r}) for ${mk}?`)) return;
+      let count = 0;
+      Object.keys(locLog).forEach(d => {
+        if (!d.startsWith(mk)) return;
+        const before = locLog[d].length;
+        locLog[d] = locLog[d].filter(x => !(x.name.toLowerCase() === n.toLowerCase() && x.role.toLowerCase() === r.toLowerCase()));
+        count += before - locLog[d].length;
+        if (!locLog[d].length) delete locLog[d];
+      });
+      mxAfterChange(); showToast(`${count} entr${count === 1 ? "y" : "ies"} deleted.`);
+    }
+
+    // ---- Column action: delete one whole day (all employees) ----
+    function mxDelDay(d) {
+      const mk = document.getElementById("mxMonth").value;
+      const date = `${mk}-${String(d).padStart(2, "0")}`;
+      const n = (locLog[date] || []).length;
+      if (!n) { showToast("Nothing logged on that day."); return; }
+      if (!confirm(`Delete ALL ${n} entries logged on ${fmtDate(date)} (every employee)?`)) return;
+      delete locLog[date];
+      mxAfterChange(); showToast("Day deleted.");
+    }
+
+    // ---- Toolbar: clear the whole month ----
+    function mxClearMonth() {
+      const mk = document.getElementById("mxMonth").value;
+      if (!mk) { alert("Select a month first."); return; }
+      const keys = Object.keys(locLog).filter(d => d.startsWith(mk));
+      const n = keys.reduce((s, d) => s + locLog[d].length, 0);
+      if (!n) { showToast("No entries in this month."); return; }
+      if (!confirm(`Delete ALL ${n} location entries for ${mk}? This cannot be undone.`)) return;
+      keys.forEach(d => delete locLog[d]);
+      mxAfterChange(); showToast("Month cleared.");
     }
 
     async function exportLocExcel() {
