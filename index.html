@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lucky Hardware - Master Site Portal</title>
+  
+  <!-- ExcelJS & FileSaver for True .xlsx Generation -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #eef2f6; color: #2d3748; padding-bottom: 40px; }
+
+    /* Login Modal Styles */
+    .auth-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(26, 54, 93, 0.95); display: flex; align-items: center; justify-content: center; z-index: 99999; }
+    .auth-card { background: #ffffff; padding: 30px; border-radius: 8px; width: 360px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; }
+    .auth-card h3 { color: #1a365d; margin-bottom: 8px; font-size: 20px; text-transform: uppercase; }
+    .auth-card p { color: #718096; font-size: 13px; margin-bottom: 20px; }
+    .auth-card input { width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 4px; margin-bottom: 12px; font-size: 14px; outline: none; }
+    .auth-card input:focus { border-color: #2b6cb0; }
+    .auth-card button { width: 100%; padding: 10px; font-size: 14px; margin-top: 5px; cursor: pointer; background: #2b6cb0; color: white; border: none; border-radius: 4px; font-weight: bold; transition: 0.2s;}
+    .auth-card button:hover { background: #2c5282; }
+    .auth-error { color: #e53e3e; font-size: 12px; margin-top: 8px; display: none; font-weight: bold; }
+
+    /* Navigation */
+    .nav-bar { background: #1a365d; padding: 15px 20px; display: flex; gap: 10px; color: white; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+    .nav-bar h2 { font-size: 18px; margin-right: auto; }
+    .tab-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 600; transition: 0.2s; font-size: 13px;}
+    .tab-btn.active, .tab-btn:hover { background: #3182ce; border-color: #3182ce; }
+
+    /* Containers */
+    .app-container { max-width: 1000px; margin: 0 auto 20px; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .app-container h3 { margin-bottom: 10px; font-size: 16px; color: #1a365d; }
+    textarea { width: 100%; height: 140px; padding: 12px; font-size: 13px; border: 1px solid #cbd5e0; border-radius: 6px; font-family: monospace; outline: none; resize: vertical; margin-bottom: 10px; }
+    textarea:focus { border-color: #2b6cb0; }
+    
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    button { padding: 8px 14px; font-size: 13px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: 0.15s; }
+    .btn-primary { background: #2b6cb0; color: white; } .btn-primary:hover { background: #2c5282; }
+    .btn-success { background: #38a169; color: white; } .btn-success:hover { background: #2f855a; }
+    .btn-warning { background: #d69e2e; color: white; } .btn-warning:hover { background: #b7791f; }
+    .btn-danger { background: #e53e3e; color: white; }  .btn-danger:hover { background: #c53030; }
+
+    .admin-input, .admin-select { padding: 7px 10px; font-size: 13px; border: 1px solid #cbd5e0; border-radius: 4px; outline: none; background: #fff; }
+    .admin-input:focus, .admin-select:focus { border-color: #2b6cb0; }
+    #toast { display: none; background: #38a169; color: white; padding: 10px 20px; border-radius: 4px; position: fixed; top: 20px; right: 20px; z-index: 100000; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ================= ATTENDANCE STYLES ================= */
+    .print-sheet { max-width: 900px; margin: 0 auto; background: #ffffff; padding: 32px 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+    .sheet-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1a365d; padding-bottom: 12px; margin-bottom: 16px; }
+    .company-info h1 { font-size: 22px; font-weight: 800; color: #1a365d; text-transform: uppercase; }
+    .company-info p { font-size: 12px; font-weight: 600; color: #4a5568; }
+    .sheet-meta { text-align: right; font-size: 13px; }
+    .pob-badge { display: inline-block; margin-top: 4px; background: #2b6cb0; color: white; padding: 3px 10px; font-weight: 700; border-radius: 4px; font-size: 12px; }
+    
+    .summary-box { background: #edf2f7; border: 1px solid #cbd5e0; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; }
+    .summary-box h3 { font-size: 13px; margin-bottom: 10px; border-bottom: 2px solid #cbd5e0; padding-bottom: 4px; }
+    .summary-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+    .summary-item { background: #ffffff; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .summary-count { color: #e53e3e; font-size: 14px; font-weight: 800; margin-left: 4px; }
+
+    .project-card { margin-bottom: 14px; border: 1px solid #cbd5e0; border-radius: 4px; overflow: hidden; page-break-inside: avoid; }
+    .project-card-header { background: #2d3748; color: white; padding: 7px 12px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; }
+    .role-badge { font-weight: 600; color: #2b6cb0; }
+    .shared-badge { background: #fed7d7; color: #9b2c2c; font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 700; text-transform: uppercase; }
+
+    .admin-controls { background: #fffaf0; border: 1px solid #ecc94b; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+    .admin-controls h4 { color: #b7791f; font-size: 13px; margin-bottom: 10px; text-transform: uppercase; font-weight: 800; }
+    
+    .filter-bar { background: #ebf8ff; border: 1px solid #bee3f8; padding: 12px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .filter-bar label { font-size: 12px; font-weight: 700; color: #2b6cb0; display: block; margin-bottom: 2px; }
+
+    .color-panel { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #4a5568; margin-left: auto; }
+    .color-panel input[type="color"] { width: 28px; height: 28px; border: none; border-radius: 4px; cursor: pointer; background: transparent; }
+
+    .monthly-sheet, .sheet { max-width: 100%; overflow-x: auto; margin: 0 auto; background: white; padding: 15px; border: 1px solid #e2e8f0; border-radius: 6px; }
+    .month-selector { display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center; }
+    .month-selector select { padding: 8px 12px; font-size: 15px; border-radius: 4px; border: 1px solid #cbd5e0; font-weight: bold; background: #fff; cursor: pointer; }
+    
+    .editable-cell { cursor: pointer; text-align: center; font-weight: bold; }
+    .editable-cell:hover { box-shadow: inset 0 0 10px rgba(0,0,0,0.1); background: #f7fafc; }
+    .val-p { color: #22543d; font-weight: 900; }
+    .val-b { color: #b7791f; font-weight: 900; }
+    .val-leave { color: #c53030; font-weight: 900; }
+
+    .editable-text, .editable { cursor: text; padding: 2px 6px; border-radius: 3px; display: inline-block; min-width: 20px;}
+    .editable-text:hover, .editable:hover { background: #e2e8f0; outline: 1px dashed #718096; }
+
+    .del-btn { color: #e53e3e; cursor: pointer; font-size: 12px; font-weight: bold; padding: 2px 6px; border-radius: 3px; display: inline-block; }
+    .del-btn:hover { background: #fed7d7; }
+    .col-del { font-size: 10px; color: #c53030; margin-left: 3px; cursor: pointer; border-radius: 50%; padding: 1px 3px; }
+    .col-del:hover { background: #feb2b2; }
+
+    .sheet-footer { margin-top: 24px; display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #cbd5e0; padding-top: 12px; page-break-inside: avoid; }
+    .admin-sign { text-align: right; }
+    .admin-sign .title { font-size: 11px; color: #718096; margin-bottom: 2px; }
+    .admin-sign .name { font-size: 15px; font-weight: 800; color: #1a365d; }
+
+    /* ================= LOCATION STYLES ================= */
+    .manual-box { background: #fffaf0; border: 1px solid #ecc94b; padding: 14px; border-radius: 6px; margin-top: 16px; }
+    .manual-box h4 { color: #b7791f; font-size: 13px; margin-bottom: 10px; text-transform: uppercase; }
+    .manual-grid { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #1a365d; color: #fff; text-align: left; padding: 7px 10px; font-size: 11px; text-transform: uppercase; white-space: nowrap; }
+    td { padding: 6px 10px; border-bottom: 1px solid #edf2f7; }
+    tr:nth-child(even) td { background: #f7fafc; }
+    .center { text-align: center; }
+    .stat { font-size: 12px; font-weight: 700; color: #4a5568; margin: 6px 0 10px; }
+
+    table.matrix th, table.matrix td { border: 1px solid #000; text-align: center; white-space: nowrap; font-size: 11px; padding: 4px 6px; }
+    table.matrix th { background: #ffe699; color: #000; }
+    table.matrix th.idc { background: #8ea9db; }
+    table.matrix td.name { text-align: left; font-weight: 600; background: #fff; }
+    table.matrix td.has { background: #e6fffa; font-weight: 600; cursor: help; }
+    table.matrix td.tot { background: #a9d08e; font-weight: 800; }
+
+    /* ================= PRINT CONFIGURATION ================= */
+    @media print {
+      body { background: transparent !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .nav-bar, .app-container, .no-print, .auth-overlay, #toast { display: none !important; }
+      .print-sheet, .monthly-sheet, .sheet { border: none !important; box-shadow: none !important; padding: 0 !important; max-width: 100% !important; overflow: visible !important;}
+      @page { margin: 8mm; }
+      .landscape-print @page { size: A4 landscape; }
+      .portrait-print @page { size: A4 portrait; }
+    }
+  </style>
+</head>
+<body class="portrait-print" id="bodyEl">
+
+  <!-- ================= AUTH MODAL ================= -->
+  <div id="authModal" class="auth-overlay">
+    <div class="auth-card">
+      <h3>Admin Login</h3>
+      <p>Lucky Hardware Master Portal</p>
+      
+      <input type="text" id="authUser" placeholder="Username" onkeydown="if(event.key==='Enter') submitAuth()">
+      <input type="password" id="authPass" placeholder="Password" onkeydown="if(event.key==='Enter') submitAuth()">
+      
+      <button id="authBtn" onclick="submitAuth()">Login</button>
+      <div id="authError" class="auth-error">Incorrect Username or Password.</div>
+    </div>
+  </div>
+
+  <div id="toast">Data Saved Successfully!</div>
+
+  <!-- ================= NAVIGATION ================= -->
+  <div class="nav-bar">
+    <h2>LUCKY HARDWARE | Master Site Portal</h2>
+    <button class="tab-btn active" onclick="switchTab('dailyAtt')">Daily Attendance</button>
+    <button class="tab-btn" onclick="switchTab('monthlyAtt')">Monthly Ledger</button>
+    <button class="tab-btn" onclick="switchTab('locEntry')">Manual Location Log</button>
+    <button class="tab-btn" onclick="switchTab('locRecords')">Location Records</button>
+    <button class="tab-btn" onclick="switchTab('locMatrix')">Location Matrix</button>
+    
+    <button style="background: #e53e3e; padding: 6px 12px; margin-left:auto;" onclick="logout()">🔒 Logout</button>
+  </div>
+
+  <!-- ================= TAB 1: DAILY ATTENDANCE ================= -->
+  <div id="dailyAttTab" class="tab-content active">
+    <div class="app-container">
+      <h3>1. Generate & Save Daily Attendance & Location Logs</h3>
+      <div style="font-size: 12px; color: #2b6cb0; font-weight: bold; margin-bottom: 8px;">
+        * Saving here automatically pushes location details (Project/Location/Task) directly to the Location Records!
+      </div>
+      <textarea id="attRawInput" placeholder="Paste daily WhatsApp text here..."></textarea>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="processAttDaily()">Preview Daily Sheet</button>
+        <button class="btn-success" onclick="saveAttDatabase()">💾 Save to Database & Locations</button>
+        <button class="btn-primary" onclick="window.print()">🖨️ Print Daily PDF</button>
+      </div>
+    </div>
+
+    <div class="print-sheet" id="dailySheetView">
+      <div class="sheet-header">
+        <div class="company-info"><h1>Lucky Hardware</h1><p>Daily Site Manpower Verification</p></div>
+        <div class="sheet-meta">
+          <div><strong>Date:</strong> <span id="outDate">--/--/----</span></div>
+          <div class="pob-badge">Total Unique POB: <span id="outTotalPOB">0</span></div>
+        </div>
+      </div>
+      <div id="summaryContainer"></div>
+      <div id="projectsContainer"></div>
+      <div class="sheet-footer">
+        <div style="font-size: 11px; color: #a0aec0;">System Generated | Dev: Anesh Meghwar</div>
+        <div class="admin-sign"><div class="title">Verified By:</div><div class="name">Anesh Meghwar</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB 2: MONTHLY ATTENDANCE ================= -->
+  <div id="monthlyAttTab" class="tab-content">
+    <div class="app-container" style="max-width: 100%;">
+      <div class="month-selector">
+        <h3>2. Monthly Master Ledger (Admin Authorized)</h3>
+        <select id="monthSelect" onchange="renderMonthlyTable()"></select>
+      </div>
+
+      <!-- FILTER & SORT BAR -->
+      <div class="filter-bar">
+        <div>
+          <label>🔍 Search Name:</label>
+          <input type="text" id="filterName" class="admin-input" placeholder="Type name..." oninput="renderMonthlyTable()">
+        </div>
+        <div>
+          <label>🛠️ Filter Trade:</label>
+          <select id="filterTrade" class="admin-select" onchange="renderMonthlyTable()">
+            <option value="ALL">All Trades</option>
+          </select>
+        </div>
+        <div>
+          <label>🔃 Sort By:</label>
+          <select id="sortBy" class="admin-select" onchange="renderMonthlyTable()">
+            <option value="default">Default Order</option>
+            <option value="name_asc">Name (A ➔ Z)</option>
+            <option value="name_desc">Name (Z ➔ A)</option>
+            <option value="trade">Trade / Designation</option>
+            <option value="days_desc">Highest Attendance (Days)</option>
+          </select>
+        </div>
+        <div class="color-panel">
+          <span>🎨 Colors:</span>
+          <label title="Identity Columns Color">ID: <input type="color" id="colThemeBlue" value="#8ea9db" onchange="updateColors()"></label>
+          <label title="Dates Columns Color">Dates: <input type="color" id="colThemeYellow" value="#ffe699" onchange="updateColors()"></label>
+          <label title="Summary Columns Color">Summary: <input type="color" id="colThemeGreen" value="#a9d08e" onchange="updateColors()"></label>
+          <button style="padding: 3px 8px; font-size: 11px;" onclick="resetColors()">Reset</button>
+        </div>
+      </div>
+      
+      <!-- ADMIN CONTROLS -->
+      <div class="admin-controls">
+        <h4>🔧 Admin Modification Controls</h4>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom: 8px;">
+          <input type="text" id="manualName" class="admin-input" placeholder="Employee Name">
+          <input type="text" id="manualRole" class="admin-input" placeholder="Designation (e.g. Mason)">
+          <button class="btn-primary" onclick="addManualWorker()">+ Add Row (Worker)</button>
+          
+          <input type="text" id="customColName" class="admin-input" placeholder="New Column (e.g. Overtime)">
+          <button class="btn-success" onclick="addCustomColumn()">+ Add Column</button>
+        </div>
+        <div style="font-size:12px; color:#744210; font-weight:600;">
+          • Click Name/Trade directly to edit in place. • Use <span style="color:#e53e3e;">✕</span> to delete rows or individual date columns. • Click any cell to cycle [ P ➔ B ➔ AL ➔ CL ➔ SL ➔ Empty ].
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-warning" onclick="exportAttExcel()">📊 Export True .xlsx (ExcelJS)</button>
+        <button class="btn-primary" onclick="window.print()">🖨️ Print / Save PDF</button>
+        <button class="btn-danger" onclick="resetMonthColumns()">🔄 Restore Hidden Columns</button>
+      </div>
+    </div>
+    <div class="monthly-sheet"><div id="monthlyTableContainer" style="background:#fff;"></div></div>
+  </div>
+
+  <!-- ================= TAB 3: LOCATION ENTRY (Manual) ================= -->
+  <div id="locEntryTab" class="tab-content">
+    <div class="app-container">
+      <h3>Paste Daily WhatsApp Text (Optional - Normally done in Attendance Tab)</h3>
+      <textarea id="locRawInput" placeholder="Paste daily WhatsApp text here..."></textarea>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="previewLocParsed()">Preview Records</button>
+        <button class="btn-success" onclick="saveLocPending()">💾 Save to Location Log</button>
+      </div>
+      <div id="previewBox" style="margin-top:14px;"></div>
+
+      <div class="manual-box">
+        <h4>✍️ Add a single entry manually</h4>
+        <div class="manual-grid">
+          <input type="date" id="mDate" class="admin-input">
+          <input type="text" id="mName" class="admin-input" placeholder="Employee name" list="nameList">
+          <input type="text" id="mRole" class="admin-input" placeholder="Designation" list="roleList">
+          <input type="text" id="mProject" class="admin-input" placeholder="Project">
+          <input type="text" id="mLocation" class="admin-input" placeholder="Location (e.g. Mine office)">
+          <input type="text" id="mWork" class="admin-input" placeholder="Work / Task">
+          <button class="btn-primary" onclick="addLocManual()">+ Add Entry</button>
+        </div>
+        <datalist id="nameList"></datalist>
+        <datalist id="roleList"></datalist>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB 4: LOCATION RECORDS ================= -->
+  <div id="locRecordsTab" class="tab-content">
+    <div class="app-container" style="max-width:100%;">
+      <h3>Location & Work Records</h3>
+      <div class="filter-bar">
+        <div><label>📅 Month</label><input type="month" id="fMonth" class="admin-input" onchange="renderLocRecords()"></div>
+        <div><label>📆 Exact Day</label><input type="date" id="fDay" class="admin-input" onchange="renderLocRecords()"></div>
+        <div><label>🔍 Employee</label><input type="text" id="fName" class="admin-input" placeholder="Type name..." oninput="renderLocRecords()"></div>
+        <div><label>📍 Location</label><select id="fLoc" class="admin-select" onchange="renderLocRecords()"><option value="ALL">All Locations</option></select></div>
+        <div><label>🛠️ Work / Project</label><input type="text" id="fWork" class="admin-input" placeholder="Search work..." oninput="renderLocRecords()"></div>
+        <div><label>👷 Designation</label><select id="fRole" class="admin-select" onchange="renderLocRecords()"><option value="ALL">All</option></select></div>
+        <div style="margin-left:auto;"><button class="btn-warning" onclick="clearLocFilters()">Clear Filters</button></div>
+      </div>
+      <div class="btn-row" style="margin-bottom:10px;">
+        <button class="btn-warning" onclick="exportLocExcel()">📊 Export .xlsx</button>
+        <button class="btn-primary" onclick="window.print()">🖨️ Print / Save PDF</button>
+        <button class="btn-success" onclick="exportLocJSON()">⬇️ Backup (JSON)</button>
+        <button class="btn-primary" onclick="document.getElementById('importFile').click()">⬆️ Restore Backup</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importLocJSON(event)">
+      </div>
+      <div class="stat" id="recStat"></div>
+      <div class="sheet"><div id="recordsTable"></div></div>
+      <div style="font-size:12px;color:#744210;font-weight:600;margin-top:8px;">Click any Employee / Designation / Project / Location / Work cell to edit it. Use ✕ to delete a row.</div>
+    </div>
+  </div>
+
+  <!-- ================= TAB 5: LOCATION MATRIX ================= -->
+  <div id="locMatrixTab" class="tab-content">
+    <div class="app-container" style="max-width:100%;">
+      <h3>Monthly Location Matrix (Employee × Day)</h3>
+      <div class="btn-row">
+        <input type="month" id="mxMonth" class="admin-input" onchange="renderLocMatrix()">
+        <button class="btn-warning" onclick="exportLocMatrixExcel()">📊 Export .xlsx</button>
+        <button class="btn-primary" onclick="window.print()">🖨️ Print / Save PDF</button>
+      </div>
+      <div style="font-size:12px;color:#4a5568;margin-top:8px;">Each cell shows the location. Hover a cell to see the work done there.</div>
+    </div>
+    <div class="sheet"><div id="matrixTable"></div></div>
+  </div>
+
+  <script>
+    // ================= GLOBAL & AUTH =================
+    function checkAuthStatus() {
+      const isLoggedIn = sessionStorage.getItem("lucky_auth_status");
+      document.getElementById("authModal").style.display = isLoggedIn === "true" ? "none" : "flex";
+    }
+
+    function submitAuth() {
+      const user = document.getElementById("authUser").value.trim();
+      const pass = document.getElementById("authPass").value.trim();
+      const err = document.getElementById("authError");
+      err.style.display = "none";
+
+      if (user === "Anesh" && pass === "thatisgreat") {
+        sessionStorage.setItem("lucky_auth_status", "true");
+        document.getElementById("authModal").style.display = "none";
+        document.getElementById("authUser").value = "";
+        document.getElementById("authPass").value = "";
+        showToast("Welcome back, Anesh!");
+      } else {
+        err.style.display = "block";
+      }
+    }
+
+    function logout() {
+      sessionStorage.removeItem("lucky_auth_status");
+      document.getElementById("authUser").value = "";
+      document.getElementById("authPass").value = "";
+      switchTab('dailyAtt');
+      checkAuthStatus();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.innerText = msg;
+      toast.style.display = "block";
+      setTimeout(() => toast.style.display = "none", 3000);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+      document.getElementById(tabId + 'Tab').classList.add('active');
+      const activeBtn = document.querySelector(`.tab-btn[onclick="switchTab('${tabId}')"]`);
+      if(activeBtn) activeBtn.classList.add('active');
+
+      const body = document.getElementById('bodyEl');
+      if(tabId === 'monthlyAtt' || tabId === 'locMatrix') {
+        body.classList.remove('portrait-print');
+        body.classList.add('landscape-print');
+      } else {
+        body.classList.remove('landscape-print');
+        body.classList.add('portrait-print');
+      }
+
+      if (tabId === 'monthlyAtt') {
+        populateMonthDropdown();
+        loadColorPickers();
+        renderMonthlyTable();
+      }
+      if (tabId === 'locRecords') {
+        refreshLocLists();
+        renderLocRecords();
+      }
+      if (tabId === 'locMatrix') {
+        const mx = document.getElementById("mxMonth");
+        if (!mx.value) {
+          const months = Object.keys(locLog).map(d => d.slice(0, 7)).sort();
+          mx.value = months.length ? months[months.length - 1] : new Date().toISOString().slice(0, 7);
+        }
+        renderLocMatrix();
+      }
+    }
+
+    // Comprehensive unified designation map
+    const designationMap = [
+      ["Owner","Owner"],["PTW SUPERVISOR","PTW Supervisor"],["PTW SUP","PTW Supervisor"],["PTW","PTW"],
+      ["HSE SUPERVISOR","HSE Supervisor"],["HSE SUP","HSE Supervisor"],["HSE OFFICER","HSE Officer"],["HSE","HSE"],
+      ["SAFETY OFFICER","Safety Officer"],["SAFETY","Safety"],["SAF","Safety"],
+      ["PROJECT ENGINEER","Project Engineer"],["CIVIL ENGINEER","Civil Engineer"],["SITE ENGINEER","Site Engineer"],
+      ["MECHANICAL ENGINEER","Mechanical Engineer"],["MECH ENGINEER","Mechanical Engineer"],["ELECTRICAL ENGINEER","Electrical Engineer"],
+      ["ENGINEER","Engineer"],["ENGR","Engineer"],["ENGG","Engineer"],["ENG","Engineer"],
+      ["QA/QC","QA/QC Engineer"],["QA/QC ENGINEER","QA/QC Engineer"],["QC","QA/QC Engineer"],
+      ["INSPECTOR","Inspector"],["INSP","Inspector"],
+      ["PROJECT MANAGER","Project Manager"],["PM","Project Manager"],["MANAGER","Manager"],["MGR","Manager"],
+      ["CIVIL SUPERVISOR","Civil Supervisor"],["SUPERVISOR","Supervisor"],["SUPER","Supervisor"],["SUPR","Supervisor"],["SUP","Supervisor"],
+      ["FOREMAN","Foreman"],["FM","Foreman"],
+      ["ADMINISTRATOR","Admin"],["ADMIN","Admin"],["ADM","Admin"],
+      ["DOCUMENT CONTROLLER","Document Controller"],["DOC CONTROLLER","Document Controller"],["DC","Document Controller"],
+      ["HR","HR"],["ACCOUNTANT","Accountant"],["ACCT","Accountant"],["CLERK","Clerk"],["OFFICE BOY","Office Boy"],["TEA BOY","Tea Boy"],
+      ["AC TECHNICIAN","AC Tech"],["AC TECH","AC Tech"],["HVAC TECH","HVAC Tech"],["HVAC","HVAC Tech"],
+      ["TECHNICIAN","Technician"],["TECH","Technician"],
+      ["ELECTRICIAN","Electrician"],["ELECTRIC","Electrician"],["ELECT","Electrician"],["ELEC","Electrician"],
+      ["PLUMBER","Plumber"],["PLUMB","Plumber"],["PLMB","Plumber"],
+      ["CARPENTER","Carpenter"],["CARP","Carpenter"],["CPTR","Carpenter"],
+      ["FOLDER","Folder"],["FOLD","Folder"],["FLDR","Folder"],
+      ["Scaffolder","Scaffolder"],["Site Manager","Site Manager"],["Shuttering","Shuttering"],["Steel Fixer","Steel Fixer"],
+      ["WELDER","Welder"],["WELD","Welder"],["PAINTER","Painter"],["PNT","Painter"],["PNTR","Painter"],
+      ["MASON","Mason"],["MESAN","Mason"],["MASN","Mason"],
+      ["FITTER","Fitter"],["FIT","Fitter"],["PIPE FITTER","Pipe Fitter"],
+      ["STEEL FIXER","Steel Fixer"],["FIXER","Steel Fixer"],
+      ["SCAFFOLDER","Scaffolder"],["SCAFF","Scaffolder"],["RIGGER","Rigger"],["RIG","Rigger"],
+      ["M OPERATOR","M. Operator"],["M. OPERATOR","M. Operator"],["CRANE OPERATOR","Crane Operator"],
+      ["HEAVY EQUIPMENT OPERATOR","HE Operator"],["OPERATOR","Operator"],["OPER","Operator"],["OPR","Operator"],
+      ["DRIVER","Driver"],["DRV","Driver"],["LTV DRIVER","LTV Driver"],["HTV DRIVER","HTV Driver"],
+      ["HELPER","Helper"],["HEPER","Helper"],["HELP","Helper"],["USL","USL"],
+      ["SKILLED LABOR","Skilled Labor"],["GENERAL LABOR","General Labor"],["LABOR","Labor"],["LABOUR","Labor"],["LAB","Labor"]
+    ];
+
+    function parseDesignation(text) {
+      let cleaned = text.trim();
+      let role = "Staff";
+      for (const [key, label] of designationMap) {
+        const regex = new RegExp(`(^|\\s|\\.|\\-)${key.replace('.', '\\.')}(\\s|$)`, "i");
+        if (regex.test(cleaned)) {
+          role = label;
+          cleaned = cleaned.replace(regex, " ").replace(/\s+/g, " ").trim();
+          break;
+        }
+      }
+      cleaned = cleaned.replace(/[\.\-\,\:\;]+$/, '').trim();
+      return { name: cleaned, role };
+    }
+
+    function fmtDate(iso) { const p = iso.split("-"); return `${p[2]}-${p[1]}-${p[0]}`; }
+    function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    function newId() { return "r_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+    // ================= SYSTEM 1: ATTENDANCE STATE =================
+    let attCurrentWorkers = [];
+    let attCurrentParsedDate = ""; 
+    let attDB = JSON.parse(localStorage.getItem("lucky_attendance_db")) || {};
+    let attThemeColors = JSON.parse(localStorage.getItem("lucky_theme_colors")) || { blue: "#8ea9db", yellow: "#ffe699", green: "#a9d08e" };
+
+    function saveAttDB() { localStorage.setItem("lucky_attendance_db", JSON.stringify(attDB)); }
+
+    function loadColorPickers() {
+      document.getElementById("colThemeBlue").value = attThemeColors.blue;
+      document.getElementById("colThemeYellow").value = attThemeColors.yellow;
+      document.getElementById("colThemeGreen").value = attThemeColors.green;
+    }
+
+    function updateColors() {
+      attThemeColors.blue = document.getElementById("colThemeBlue").value;
+      attThemeColors.yellow = document.getElementById("colThemeYellow").value;
+      attThemeColors.green = document.getElementById("colThemeGreen").value;
+      localStorage.setItem("lucky_theme_colors", JSON.stringify(attThemeColors));
+      renderMonthlyTable();
+    }
+
+    function resetColors() {
+      attThemeColors = { blue: "#8ea9db", yellow: "#ffe699", green: "#a9d08e" };
+      localStorage.setItem("lucky_theme_colors", JSON.stringify(attThemeColors));
+      loadColorPickers();
+      renderMonthlyTable();
+    }
+
+    function processAttDaily() {
+      let raw = document.getElementById("attRawInput").value;
+      if (!raw) return;
+      raw = raw.replace(/[\u200B-\u200D\uFEFF\u200E\u200F]/g, '');
+
+      let reportDateStr = new Date().toLocaleDateString("en-GB");
+      let isoDate = new Date().toISOString().split('T')[0]; 
+
+      const dateMatch = raw.match(/Date\s*[:\-\s]*([0-9\/\-\.]+)/i);
+      if (dateMatch) {
+        const dStr = dateMatch[1].replace(/\./g, '-').replace(/\//g, '-'); 
+        reportDateStr = dStr;
+        const parts = dStr.split('-');
+        if(parts.length === 3) {
+          let year = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+          let month = parts[1].padStart(2, '0');
+          let day = parts[0].padStart(2, '0');
+          isoDate = `${year}-${month}-${day}`;
+        }
+      }
+      
+      document.getElementById("outDate").innerText = reportDateStr;
+      attCurrentParsedDate = isoDate; 
+
+      const rawBlocks = raw.split(/Company\s*[:\s]*Lucky\s*Hardware/i).filter(b => b.trim().length > 0);
+      const parsedProjects = [];
+      const seenSignatures = new Set();
+      const uniqueWorkersRegistry = new Set();
+      const roleCounts = {};
+      let totalUniquePOB = 0;
+      attCurrentWorkers = []; 
+
+      rawBlocks.forEach((block, idx) => {
+        const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+        let projectName = `General Site ${idx + 1}`; 
+        let location = "Main Site";
+        let subArea = "General";
+        const workers = [];
+
+        lines.forEach(line => {
+          if (/^Project\s*[:\-\s]+/i.test(line)) projectName = line.replace(/^Project\s*[:\-\s]+/i, "").trim();
+          else if (/^(Location|Area)\s*[:\-\s]+/i.test(line)) location = line.replace(/^(Location|Area)\s*[:\-\s]+/i, "").trim();
+          else if (/^[0-9]+[\.\:\)\s\-]+/.test(line)) {
+            const cleanLine = line.replace(/^[0-9]+[\.\:\)\s\-]+/, "").trim();
+            if (cleanLine.length > 2) {
+              const { name, role } = parseDesignation(cleanLine);
+              if (name) {
+                const fp = name.toLowerCase() + "_" + role.toLowerCase();
+                let isShared = uniqueWorkersRegistry.has(fp);
+                if (!isShared) {
+                  uniqueWorkersRegistry.add(fp);
+                  totalUniquePOB++;
+                  roleCounts[role] = (roleCounts[role] || 0) + 1;
+                  attCurrentWorkers.push({ id: fp, name: name, role: role });
+                }
+                workers.push({ name, role, area: subArea, isShared });
+              }
+            }
+          } else if (line.length > 3 && !line.match(/^(Company|Date|Project|Location|Area|POB)/i)) {
+            subArea = line.trim();
+          }
+        });
+
+        const sig = `${projectName.toLowerCase()}_${location.toLowerCase()}_${workers.length}`;
+        if (!seenSignatures.has(sig) && workers.length > 0) {
+          seenSignatures.add(sig);
+          parsedProjects.push({ projectName, location, workers });
+        }
+      });
+
+      document.getElementById("outTotalPOB").innerText = totalUniquePOB;
+      const summaryContainer = document.getElementById("summaryContainer");
+      if (Object.keys(roleCounts).length > 0) {
+        let html = `<div class="summary-box"><h3>Site Manpower Summary (By Trade)</h3><div class="summary-grid">`;
+        Object.keys(roleCounts).sort().forEach(r => html += `<div class="summary-item">${r} <span class="summary-count">${roleCounts[r]}</span></div>`);
+        summaryContainer.innerHTML = html + `</div></div>`;
+      } else summaryContainer.innerHTML = "";
+
+      const container = document.getElementById("projectsContainer");
+      container.innerHTML = "";
+      parsedProjects.forEach(proj => {
+        let rows = "";
+        proj.workers.forEach((w, i) => {
+          let stat = w.isShared ? `<span class="shared-badge">Multi-Site</span>` : (w.area !== "General" ? w.area : "Present");
+          rows += `<tr><td class="center" style="width: 30px;">${String(i+1).padStart(2,'0')}</td><td style="text-align:left;"><strong>${w.name}</strong></td><td class="role-badge" style="text-align:left;">${w.role}</td><td style="text-align:left;">${stat}</td></tr>`;
+        });
+        
+        let tableHTML = `
+        <div class="project-card">
+          <div class="project-card-header"><div>Project: ${proj.projectName}</div><div>Loc: ${proj.location}</div></div>
+          <table>
+            <thead><tr><th class="center" style="color:#000;">#</th><th style="color:#000;">Name</th><th style="color:#000;">Designation</th><th style="color:#000;">Area/Status</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+        container.innerHTML += tableHTML;
+      });
+    }
+
+    function saveAttDatabase() {
+      if(attCurrentWorkers.length === 0) { alert("Please generate a daily sheet first!"); return; }
+      
+      // 1. SAVE TO ATTENDANCE LOGS
+      const [year, month, day] = attCurrentParsedDate.split('-'); 
+      const monthKey = `${year}-${month}`; 
+      
+      initMonthStructure(monthKey);
+
+      attCurrentWorkers.forEach(w => {
+        if(!attDB[monthKey].roster[w.id]) {
+          attDB[monthKey].roster[w.id] = { name: w.name, role: w.role, createdAt: Date.now() };
+        }
+        if(!attDB[monthKey].attendance[day][w.id]) {
+          attDB[monthKey].attendance[day][w.id] = 'P';
+        }
+      });
+
+      saveAttDB();
+
+      // 2. AUTO-SAVE TO LOCATION LOGS
+      const rawText = document.getElementById("attRawInput").value;
+      if (rawText.trim()) {
+        const parsedLoc = parseLocDaily(rawText);
+        if (parsedLoc && parsedLoc.rows.length > 0) {
+          const d = parsedLoc.date;
+          if (!locLog[d]) locLog[d] = [];
+          
+          parsedLoc.rows.forEach(r => {
+            locLog[d] = locLog[d].filter(x => !(
+              x.name.toLowerCase() === r.name.toLowerCase() &&
+              x.role.toLowerCase() === r.role.toLowerCase() &&
+              x.project.toLowerCase() === r.project.toLowerCase() &&
+              x.location.toLowerCase() === r.location.toLowerCase()
+            ));
+            locLog[d].push(r);
+          });
+          saveLocLog();
+          refreshLocLists(); 
+        }
+      }
+
+      showToast(`Saved Attendance & Location Logs for ${day}/${month}/${year}!`);
+    }
+
+    function populateMonthDropdown() {
+      const select = document.getElementById("monthSelect");
+      const currentVal = select.value;
+      select.innerHTML = "";
+      
+      let d = new Date();
+      let currentYear = d.getFullYear();
+      let allMonths = [];
+      
+      for(let y = 2002; y <= 2050; y++) {
+        for(let m = 1; m <= 12; m++) {
+          allMonths.push(`${y}-${String(m).padStart(2,'0')}`);
+        }
+      }
+      
+      const dbMonths = Object.keys(attDB);
+      let combined = [...new Set([...allMonths, ...dbMonths])].sort().reverse();
+      
+      combined.forEach(k => {
+        let opt = document.createElement('option');
+        opt.value = k; 
+        const [yyyy, mm] = k.split('-');
+        let dateObj = new Date(parseInt(yyyy), parseInt(mm) - 1, 1);
+        opt.text = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+        select.appendChild(opt);
+      });
+      
+      let nowStr = `${currentYear}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      if (currentVal && combined.includes(currentVal)) {
+        select.value = currentVal; 
+      } else if (combined.includes(nowStr)) {
+        select.value = nowStr; 
+      } else {
+        select.selectedIndex = 0;
+      }
+    }
+
+    function initMonthStructure(monthKey) {
+      if(!attDB[monthKey]) attDB[monthKey] = { roster: {}, attendance: {}, deletedCols: [], customCols: [] };
+      if(!attDB[monthKey].roster) attDB[monthKey].roster = {};
+      if(!attDB[monthKey].attendance) attDB[monthKey].attendance = {};
+      if(!attDB[monthKey].deletedCols) attDB[monthKey].deletedCols = [];
+      if(!attDB[monthKey].customCols) attDB[monthKey].customCols = [];
+      
+      const [yearStr, monthStr] = monthKey.split('-');
+      const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
+      for(let d=1; d<=daysInMonth; d++) {
+        const dayStr = String(d).padStart(2, '0');
+        if(!attDB[monthKey].attendance[dayStr]) attDB[monthKey].attendance[dayStr] = {};
+      }
+    }
+
+    function editWorkerField(monthKey, workerId, field, el) {
+      const currentVal = attDB[monthKey].roster[workerId][field];
+      const newVal = prompt(`Edit ${field.toUpperCase()}:`, currentVal);
+      if(newVal !== null && newVal.trim() !== "") {
+        attDB[monthKey].roster[workerId][field] = newVal.trim();
+        saveAttDB();
+        renderMonthlyTable();
+        showToast("Updated successfully!");
+      }
+    }
+
+    function deleteWorker(monthKey, workerId) {
+      const name = attDB[monthKey].roster[workerId]?.name || "this worker";
+      if(confirm(`Are you sure you want to delete ${name}?`)) {
+        delete attDB[monthKey].roster[workerId];
+        Object.keys(attDB[monthKey].attendance).forEach(d => {
+          if(attDB[monthKey].attendance[d][workerId]) delete attDB[monthKey].attendance[d][workerId];
+        });
+        saveAttDB();
+        renderMonthlyTable();
+        showToast("Worker removed.");
+      }
+    }
+
+    function addManualWorker() {
+      const monthKey = document.getElementById("monthSelect").value;
+      initMonthStructure(monthKey);
+      
+      const name = document.getElementById("manualName").value.trim();
+      const role = document.getElementById("manualRole").value.trim();
+      if(!name || !role) return alert("Please enter both Name and Designation.");
+      
+      const workerId = "usr_" + Date.now();
+      attDB[monthKey].roster[workerId] = { name: name, role: role, createdAt: Date.now() };
+      saveAttDB();
+      
+      document.getElementById("manualName").value = "";
+      document.getElementById("manualRole").value = "";
+      renderMonthlyTable();
+      showToast(name + " added to Roster!");
+    }
+
+    function deleteDateColumn(monthKey, dayStr) {
+      if(confirm(`Delete column for day ${dayStr}?`)) {
+        if(!attDB[monthKey].deletedCols.includes(dayStr)) {
+          attDB[monthKey].deletedCols.push(dayStr);
+          saveAttDB();
+          renderMonthlyTable();
+          showToast(`Day ${dayStr} column removed.`);
+        }
+      }
+    }
+
+    function addCustomColumn() {
+      const monthKey = document.getElementById("monthSelect").value;
+      initMonthStructure(monthKey);
+      
+      const colName = document.getElementById("customColName").value.trim();
+      if(!colName) return alert("Enter a column name.");
+      
+      const colId = "col_" + Date.now();
+      attDB[monthKey].customCols.push({ id: colId, name: colName });
+      saveAttDB();
+      
+      document.getElementById("customColName").value = "";
+      renderMonthlyTable();
+      showToast(`Custom column "${colName}" added!`);
+    }
+
+    function deleteCustomColumn(monthKey, colId) {
+      if(confirm("Delete this custom column?")) {
+        attDB[monthKey].customCols = attDB[monthKey].customCols.filter(c => c.id !== colId);
+        Object.keys(attDB[monthKey].roster).forEach(id => {
+          if(attDB[monthKey].roster[id][colId]) delete attDB[monthKey].roster[id][colId];
+        });
+        saveAttDB();
+        renderMonthlyTable();
+        showToast("Column deleted.");
+      }
+    }
+
+    function editCustomCell(monthKey, workerId, colId) {
+      const currentVal = attDB[monthKey].roster[workerId][colId] || "";
+      const newVal = prompt("Enter value:", currentVal);
+      if(newVal !== null) {
+        attDB[monthKey].roster[workerId][colId] = newVal.trim();
+        saveAttDB();
+        renderMonthlyTable();
+      }
+    }
+
+    function resetMonthColumns() {
+      const monthKey = document.getElementById("monthSelect").value;
+      if(confirm("Restore all hidden/deleted date columns for this month?")) {
+        attDB[monthKey].deletedCols = [];
+        saveAttDB();
+        renderMonthlyTable();
+        showToast("All date columns restored.");
+      }
+    }
+
+    function cycleAttendance(monthKey, dayStr, workerId) {
+      initMonthStructure(monthKey);
+      let currentVal = attDB[monthKey].attendance[dayStr][workerId] || '';
+      const nextState = {'': 'P', 'P': 'B', 'B': 'AL', 'AL': 'CL', 'CL': 'SL', 'SL': ''};
+      let newVal = nextState[currentVal];
+      
+      if (newVal === '') {
+        delete attDB[monthKey].attendance[dayStr][workerId];
+      } else {
+        attDB[monthKey].attendance[dayStr][workerId] = newVal;
+      }
+      saveAttDB();
+      renderMonthlyTable(); 
+    }
+
+    function getPreparedRoster(monthKey) {
+      const monthData = attDB[monthKey];
+      const [yearStr, monthStr] = monthKey.split('-');
+      const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
+      
+      const nameFilter = (document.getElementById("filterName")?.value || "").toLowerCase().trim();
+      const tradeFilter = document.getElementById("filterTrade")?.value || "ALL";
+      const sortCriterion = document.getElementById("sortBy")?.value || "default";
+
+      let rosterIds = Object.keys(monthData.roster).filter(id => {
+        const w = monthData.roster[id];
+        const matchName = !nameFilter || w.name.toLowerCase().includes(nameFilter);
+        const matchTrade = (tradeFilter === "ALL") || (w.role === tradeFilter);
+        return matchName && matchTrade;
+      });
+
+      rosterIds.sort((a, b) => {
+        const wa = monthData.roster[a];
+        const wb = monthData.roster[b];
+        if (sortCriterion === "name_asc") return wa.name.localeCompare(wb.name);
+        if (sortCriterion === "name_desc") return wb.name.localeCompare(wa.name);
+        if (sortCriterion === "trade") return wa.role.localeCompare(wb.role) || wa.name.localeCompare(wb.name);
+        if (sortCriterion === "days_desc") {
+          let countA = 0, countB = 0;
+          for(let d=1; d<=daysInMonth; d++) {
+            let dayStr = String(d).padStart(2, '0');
+            if (monthData.attendance[dayStr]?.[a] === 'P') countA++;
+            if (monthData.attendance[dayStr]?.[b] === 'P') countB++;
+          }
+          return countB - countA;
+        }
+        return (wa.createdAt || 0) - (wb.createdAt || 0);
+      });
+
+      return { rosterIds, daysInMonth, yearStr, monthStr };
+    }
+
+    function renderMonthlyTable() {
+      const monthKey = document.getElementById("monthSelect").value;
+      const container = document.getElementById("monthlyTableContainer");
+      initMonthStructure(monthKey);
+      
+      const monthData = attDB[monthKey];
+      const { rosterIds, daysInMonth, yearStr, monthStr } = getPreparedRoster(monthKey);
+
+      const tradeSelect = document.getElementById("filterTrade");
+      const currentTradeFilter = tradeSelect.value;
+      const allTrades = [...new Set(Object.values(monthData.roster).map(w => w.role))].filter(Boolean).sort();
+      tradeSelect.innerHTML = `<option value="ALL">All Trades</option>`;
+      allTrades.forEach(tr => {
+        let opt = document.createElement("option");
+        opt.value = tr; opt.innerText = tr;
+        if(tr === currentTradeFilter) opt.selected = true;
+        tradeSelect.appendChild(opt);
+      });
+
+      const shortMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const shortDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const monthName = shortMonths[parseInt(monthStr)-1];
+
+      const borderCSS = `border: 1pt solid #000000; text-align: center; vertical-align: middle;`;
+      const fontCSS = `font-family: Calibri, sans-serif; font-size: 11pt; color: #000000;`;
+      
+      const stBlue = `${borderCSS} ${fontCSS} background-color: ${attThemeColors.blue}; font-weight: bold;`;
+      const stYellow = `${borderCSS} ${fontCSS} background-color: ${attThemeColors.yellow}; font-weight: bold;`;
+      const stGreen = `${borderCSS} ${fontCSS} background-color: ${attThemeColors.green}; font-weight: bold;`;
+      const stCell = `${borderCSS} ${fontCSS} background-color: #ffffff;`;
+
+      let tableHtml = `<table id="excelTable" style="border-collapse: collapse; min-width: 100%; white-space: nowrap;">`;
+      
+      let activeDays = [];
+      for(let d=1; d<=daysInMonth; d++) {
+        let dayStr = String(d).padStart(2, '0');
+        if(!monthData.deletedCols.includes(dayStr)) {
+          activeDays.push({ d, dayStr });
+        }
+      }
+
+      tableHtml += `<tr style="height: 35px;">
+        <th class="no-print" style="${stBlue} width: 35px;">Action</th>
+        <th colspan="3" style="${stBlue}"></th>`;
+      
+      activeDays.forEach(item => {
+        tableHtml += `<th style="${stYellow} min-width: 48px;">
+          ${item.d}-${monthName}
+          <span class="no-print col-del" onclick="deleteDateColumn('${monthKey}', '${item.dayStr}')" title="Delete column">✕</span>
+        </th>`;
+      });
+
+      tableHtml += `<th style="${stYellow} width: 35px;"></th>`;
+
+      monthData.customCols.forEach(c => {
+        tableHtml += `<th style="${stGreen} min-width: 60px;">
+          ${c.name}
+          <span class="no-print col-del" onclick="deleteCustomColumn('${monthKey}', '${c.id}')" title="Delete column">✕</span>
+        </th>`;
+      });
+
+      tableHtml += `<th style="${stGreen}">TOTAL<br>DAYS</th>
+                    <th style="${stGreen}">Break<br>Day</th>
+                    <th style="${stGreen}">AL</th>
+                    <th style="${stGreen}">CL</th>
+                    <th style="${stGreen}">SL</th>
+                    <th style="${stGreen} width: 45px;"></th></tr>`;
+      
+      tableHtml += `<tr style="height: 32px;">
+        <th class="no-print" style="${stBlue}"></th>
+        <th style="${stBlue} width: 45px;">S No.</th>
+        <th style="${stBlue} width: 170px;">Name (Edit)</th>
+        <th style="${stBlue} width: 130px;">Designation</th>`;
+      
+      activeDays.forEach(item => {
+        let dayOfWeek = new Date(parseInt(yearStr), parseInt(monthStr)-1, item.d).getDay();
+        tableHtml += `<th style="${stYellow}">${shortDays[dayOfWeek]}</th>`;
+      });
+
+      tableHtml += `<th style="${stYellow}"></th>`;
+
+      monthData.customCols.forEach(() => {
+        tableHtml += `<th style="${stGreen}"></th>`;
+      });
+
+      tableHtml += `<th style="${stGreen}"></th>
+                    <th style="${stGreen}"></th>
+                    <th style="${stGreen}"></th>
+                    <th style="${stGreen}"></th>
+                    <th style="${stGreen}"></th>
+                    <th style="${stGreen}"></th></tr>`;
+
+      rosterIds.forEach((id, index) => {
+        const w = monthData.roster[id];
+        let tP = 0, tB = 0, tAL = 0, tCL = 0, tSL = 0;
+        
+        let rowHtml = `<tr style="height: 25px;">
+          <td class="no-print" style="${stCell}">
+            <span class="del-btn" onclick="deleteWorker('${monthKey}', '${id}')" title="Delete Row">✕</span>
+          </td>
+          <td style="${stCell}">${index + 1}</td>
+          <td style="${stCell} text-align: left; padding-left: 6px;">
+            <span class="editable-text" onclick="editWorkerField('${monthKey}', '${id}', 'name', this)">${w.name}</span>
+          </td>
+          <td style="${stCell} text-align: left; padding-left: 6px;">
+            <span class="editable-text" onclick="editWorkerField('${monthKey}', '${id}', 'role', this)">${w.role}</span>
+          </td>`;
+
+        activeDays.forEach(item => {
+          let val = (monthData.attendance[item.dayStr] && monthData.attendance[item.dayStr][id]) ? monthData.attendance[item.dayStr][id] : '';
+          
+          let colorClass = "";
+          if (val === 'P') { tP++; colorClass = "val-p"; }
+          if (val === 'B') { tB++; colorClass = "val-b"; }
+          if (val === 'AL') { tAL++; colorClass = "val-leave"; }
+          if (val === 'CL') { tCL++; colorClass = "val-leave"; }
+          if (val === 'SL') { tSL++; colorClass = "val-leave"; }
+          
+          rowHtml += `<td class="editable-cell ${colorClass}" style="${stCell}" onclick="cycleAttendance('${monthKey}', '${item.dayStr}', '${id}')">${val}</td>`;
+        });
+        
+        rowHtml += `<td style="${stCell}"></td>`;
+
+        monthData.customCols.forEach(c => {
+          let customVal = w[c.id] || "";
+          rowHtml += `<td class="editable-cell" style="${stCell}" onclick="editCustomCell('${monthKey}', '${id}', '${c.id}')">${customVal}</td>`;
+        });
+
+        rowHtml += `<td style="${stCell} background-color: #f7fafc; font-weight: bold; color: #c53030;">${tP}</td>
+                    <td style="${stCell}">${tB || ''}</td>
+                    <td style="${stCell}">${tAL || ''}</td>
+                    <td style="${stCell}">${tCL || ''}</td>
+                    <td style="${stCell}">${tSL || ''}</td>
+                    <td style="${stCell}"></td></tr>`;
+        
+        tableHtml += rowHtml;
+      });
+
+      if (rosterIds.length === 0) {
+        tableHtml += `<tr><td colspan="${activeDays.length + monthData.customCols.length + 11}" style="text-align:center; padding: 25px; font-family: Calibri;">No workers matched your filters.</td></tr>`;
+      }
+
+      tableHtml += `</table>`;
+      container.innerHTML = tableHtml;
+    }
+
+    async function exportAttExcel() {
+      const monthKey = document.getElementById("monthSelect").value;
+      const monthData = attDB[monthKey];
+      const { rosterIds, daysInMonth, yearStr, monthStr } = getPreparedRoster(monthKey);
+
+      const shortMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const shortDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const monthName = shortMonths[parseInt(monthStr)-1];
+
+      const cleanHex = (hex) => "FF" + hex.replace('#', '').toUpperCase();
+      const argbBlue = cleanHex(attThemeColors.blue);
+      const argbYellow = cleanHex(attThemeColors.yellow);
+      const argbGreen = cleanHex(attThemeColors.green);
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Attendance');
+      worksheet.views = [{ showGridLines: true }];
+
+      let activeDays = [];
+      for(let d=1; d<=daysInMonth; d++) {
+        let dayStr = String(d).padStart(2, '0');
+        if(!monthData.deletedCols.includes(dayStr)) {
+          activeDays.push({ d, dayStr });
+        }
+      }
+
+      let columnsConfig = [
+        { header: '', key: 'sno', width: 8 },
+        { header: '', key: 'name', width: 25 },
+        { header: '', key: 'role', width: 20 }
+      ];
+
+      activeDays.forEach(item => {
+        columnsConfig.push({ header: `${item.d}-${monthName}`, key: `d_${item.d}`, width: 6 });
+      });
+
+      columnsConfig.push({ header: '', key: 'spacer1', width: 5 });
+
+      monthData.customCols.forEach(c => {
+        columnsConfig.push({ header: c.name, key: `custom_${c.id}`, width: 14 });
+      });
+
+      columnsConfig.push(
+        { header: 'TOTAL DAYS', key: 'total_days', width: 14 },
+        { header: 'Break Day', key: 'break_day', width: 12 },
+        { header: 'AL', key: 'al', width: 8 },
+        { header: 'CL', key: 'cl', width: 8 },
+        { header: 'SL', key: 'sl', width: 8 },
+        { header: '', key: 'spacer2', width: 6 }
+      );
+
+      worksheet.columns = columnsConfig;
+
+      const row1 = worksheet.getRow(1);
+      row1.height = 28;
+
+      let row2Values = { sno: 'S No.', name: 'Name', role: 'Designation' };
+      activeDays.forEach(item => {
+        let dayOfWeek = new Date(parseInt(yearStr), parseInt(monthStr)-1, item.d).getDay();
+        row2Values[`d_${item.d}`] = shortDays[dayOfWeek];
+      });
+      const row2 = worksheet.addRow(row2Values);
+      row2.height = 24;
+
+      const thinBorder = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+      };
+
+      const setHeaderStyle = (cell, argbColor) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argbColor } };
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF000000' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = thinBorder;
+      };
+
+      let totalCols = columnsConfig.length;
+      for (let col = 1; col <= totalCols; col++) {
+        let cellR1 = row1.getCell(col);
+        let cellR2 = row2.getCell(col);
+
+        let targetColor = argbBlue;
+        if (col >= 4 && col <= 3 + activeDays.length + 1) {
+          targetColor = argbYellow;
+        } else if (col > 3 + activeDays.length + 1) {
+          targetColor = argbGreen;
+        }
+        setHeaderStyle(cellR1, targetColor);
+        setHeaderStyle(cellR2, targetColor);
+      }
+
+      rosterIds.forEach((id, index) => {
+        const w = monthData.roster[id];
+        let tP = 0, tB = 0, tAL = 0, tCL = 0, tSL = 0;
+        let rowValues = { sno: index + 1, name: w.name, role: w.role };
+
+        activeDays.forEach(item => {
+          let val = monthData.attendance[item.dayStr]?.[id] || '';
+          rowValues[`d_${item.d}`] = val;
+          if (val === 'P') tP++;
+          if (val === 'B') tB++;
+          if (val === 'AL') tAL++;
+          if (val === 'CL') tCL++;
+          if (val === 'SL') tSL++;
+        });
+
+        monthData.customCols.forEach(c => {
+          rowValues[`custom_${c.id}`] = w[c.id] || '';
+        });
+
+        rowValues['total_days'] = tP;
+        rowValues['break_day'] = tB || '';
+        rowValues['al'] = tAL || '';
+        rowValues['cl'] = tCL || '';
+        rowValues['sl'] = tSL || '';
+
+        const dataRow = worksheet.addRow(rowValues);
+        dataRow.height = 20;
+
+        for (let col = 1; col <= totalCols; col++) {
+          let cell = dataRow.getCell(col);
+          cell.border = thinBorder;
+          cell.font = { name: 'Calibri', size: 10 };
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+          if (col === 2 || col === 3) {
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          }
+          if (columnsConfig[col - 1].key === 'total_days') {
+            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFC53030' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7FAFC' } };
+          }
+        }
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, `Lucky_Attendance_${monthKey}.xlsx`);
+    }
+
+    // ================= SYSTEM 2: LOCATION STATE =================
+    const LOC_LOG_KEY = "lucky_location_log_db";
+    let locLog = {};
+    try { locLog = JSON.parse(localStorage.getItem(LOC_LOG_KEY)) || {}; } catch (e) { locLog = {}; }
+    let locPending = { date: "", rows: [] };
+
+    function saveLocLog() { localStorage.setItem(LOC_LOG_KEY, JSON.stringify(locLog)); }
+
+    function parseLocDaily(raw) {
+      raw = raw.replace(/[\u200B-\u200D\uFEFF\u200E\u200F]/g, '');
+      let isoDate = new Date().toISOString().split('T')[0];
+      const dm = raw.match(/Date\s*[:\-\s]*([0-9\/\-\.]+)/i);
+      if (dm) {
+        const parts = dm[1].replace(/\./g, '-').replace(/\//g, '-').split('-');
+        if (parts.length === 3) {
+          const year = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+          isoDate = `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+
+      const blocks = raw.split(/Company\s*[:\s]*Lucky\s*Hardware/i).filter(b => b.trim().length > 0);
+      const rows = [];
+      const seenSig = new Set();
+
+      blocks.forEach((block, idx) => {
+        const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+        let project = `General Site ${idx + 1}`, location = "Main Site", subArea = "";
+        const workers = [];
+
+        lines.forEach(line => {
+          if (/^Project\s*[:\-\s]+/i.test(line)) project = line.replace(/^Project\s*[:\-\s]+/i, "").trim();
+          else if (/^(Location|Area)\s*[:\-\s]+/i.test(line)) location = line.replace(/^(Location|Area)\s*[:\-\s]+/i, "").trim();
+          else if (/^[0-9]+[\.\:\)\s\-]+/.test(line)) {
+            const clean = line.replace(/^[0-9]+[\.\:\)\s\-]+/, "").trim();
+            if (clean.length > 2) {
+              const { name, role } = parseDesignation(clean);
+              if (name) workers.push({ name, role, work: subArea || project });
+            }
+          } else if (line.length > 3 && !line.match(/^(Company|Date|Project|Location|Area|POB)/i)) {
+            subArea = line.trim();
+          }
+        });
+
+        const sig = `${project.toLowerCase()}_${location.toLowerCase()}_${workers.length}`;
+        if (!seenSig.has(sig) && workers.length > 0) {
+          seenSig.add(sig);
+          workers.forEach(w => rows.push({ id: newId(), name: w.name, role: w.role, project, location, work: w.work }));
+        }
+      });
+      return { date: isoDate, rows };
+    }
+
+    function previewLocParsed() {
+      const raw = document.getElementById("locRawInput").value;
+      if (!raw.trim()) return;
+      locPending = parseLocDaily(raw);
+      const box = document.getElementById("previewBox");
+      if (locPending.rows.length === 0) { box.innerHTML = `<div class="stat">No employees found in the text.</div>`; return; }
+      let h = `<div class="stat">Date: ${fmtDate(locPending.date)} &nbsp;|&nbsp; ${locPending.rows.length} record(s) ready to save</div>
+        <table style="width:100%;"><thead><tr><th style="color:#fff;">#</th><th style="color:#fff;">Employee</th><th style="color:#fff;">Designation</th><th style="color:#fff;">Project</th><th style="color:#fff;">Location</th><th style="color:#fff;">Work / Task</th></tr></thead><tbody>`;
+      locPending.rows.forEach((r, i) => {
+        h += `<tr><td>${i + 1}</td><td><strong>${esc(r.name)}</strong></td><td class="role-badge">${esc(r.role)}</td><td>${esc(r.project)}</td><td>${esc(r.location)}</td><td>${esc(r.work)}</td></tr>`;
+      });
+      box.innerHTML = h + `</tbody></table>`;
+    }
+
+    function saveLocPending() {
+      if (!locPending.rows.length) { alert("Click 'Preview Records' first!"); return; }
+      const d = locPending.date;
+      if (!locLog[d]) locLog[d] = [];
+      locPending.rows.forEach(r => {
+        locLog[d] = locLog[d].filter(x => !(
+          x.name.toLowerCase() === r.name.toLowerCase() &&
+          x.role.toLowerCase() === r.role.toLowerCase() &&
+          x.project.toLowerCase() === r.project.toLowerCase() &&
+          x.location.toLowerCase() === r.location.toLowerCase()));
+        locLog[d].push(r);
+      });
+      saveLocLog();
+      showToast(`Saved ${locPending.rows.length} record(s) for ${fmtDate(d)}`);
+      locPending = { date: "", rows: [] };
+      document.getElementById("previewBox").innerHTML = "";
+      refreshLocLists();
+    }
+
+    function addLocManual() {
+      const date = document.getElementById("mDate").value;
+      const name = document.getElementById("mName").value.trim();
+      const role = document.getElementById("mRole").value.trim();
+      const project = document.getElementById("mProject").value.trim();
+      const location = document.getElementById("mLocation").value.trim();
+      const work = document.getElementById("mWork").value.trim();
+      if (!date || !name || !location) { alert("Date, Employee name and Location are required."); return; }
+      if (!locLog[date]) locLog[date] = [];
+      locLog[date].push({ id: newId(), name, role: role || "Staff", project, location, work: work || project });
+      saveLocLog();
+      ["mName", "mRole", "mProject", "mLocation", "mWork"].forEach(id => document.getElementById(id).value = "");
+      refreshLocLists();
+      showToast(`${name} added for ${fmtDate(date)}`);
+    }
+
+    function allLocRecords() {
+      const out = [];
+      Object.keys(locLog).forEach(d => locLog[d].forEach(r => out.push(Object.assign({ date: d }, r))));
+      return out;
+    }
+
+    function filteredLocRecords() {
+      const month = document.getElementById("fMonth").value;
+      const day = document.getElementById("fDay").value;
+      const name = document.getElementById("fName").value.toLowerCase().trim();
+      const loc = document.getElementById("fLoc").value;
+      const work = document.getElementById("fWork").value.toLowerCase().trim();
+      const role = document.getElementById("fRole").value;
+      return allLocRecords().filter(r =>
+        (!month || r.date.startsWith(month)) &&
+        (!day || r.date === day) &&
+        (!name || r.name.toLowerCase().includes(name)) &&
+        (loc === "ALL" || r.location === loc) &&
+        (!work || (r.work + " " + r.project).toLowerCase().includes(work)) &&
+        (role === "ALL" || r.role === role)
+      ).sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name));
+    }
+
+    function fillSelect(id, values, allLabel) {
+      const sel = document.getElementById(id);
+      const cur = sel.value;
+      sel.innerHTML = `<option value="ALL">${allLabel}</option>`;
+      values.forEach(v => {
+        const o = document.createElement("option");
+        o.value = v; o.textContent = v;
+        if (v === cur) o.selected = true;
+        sel.appendChild(o);
+      });
+    }
+
+    function refreshLocLists() {
+      const recs = allLocRecords();
+      const uniq = f => [...new Set(recs.map(r => r[f]).filter(Boolean))].sort();
+      fillSelect("fLoc", uniq("location"), "All Locations");
+      fillSelect("fRole", uniq("role"), "All");
+      
+      let names = new Set(uniq("name"));
+      try {
+        const att = JSON.parse(localStorage.getItem("lucky_attendance_db")) || {};
+        Object.values(att).forEach(m => Object.values(m.roster || {}).forEach(w => names.add(w.name)));
+      } catch (e) {}
+      
+      document.getElementById("nameList").innerHTML = [...names].sort().map(n => `<option value="${esc(n)}">`).join("");
+      document.getElementById("roleList").innerHTML = uniq("role").map(n => `<option value="${esc(n)}">`).join("");
+      
+      if (document.getElementById("locRecordsTab").classList.contains("active")) renderLocRecords();
+    }
+
+    function renderLocRecords() {
+      const recs = filteredLocRecords();
+      const people = new Set(recs.map(r => r.name.toLowerCase())).size;
+      const locs = new Set(recs.map(r => r.location)).size;
+      document.getElementById("recStat").innerText = `${recs.length} record(s) · ${people} employee(s) · ${locs} location(s)`;
+      if (!recs.length) { document.getElementById("recordsTable").innerHTML = `<div style="padding:20px;text-align:center;">No records match.</div>`; return; }
+      let h = `<table><thead><tr><th style="color:#fff;">#</th><th style="color:#fff;">Date</th><th style="color:#fff;">Employee</th><th style="color:#fff;">Designation</th><th style="color:#fff;">Project</th><th style="color:#fff;">Location</th><th style="color:#fff;">Work / Task</th><th class="no-print" style="color:#fff;"></th></tr></thead><tbody>`;
+      recs.forEach((r, i) => {
+        const ed = f => `<span class="editable" onclick="editLocRec('${r.date}','${r.id}','${f}')">${esc(r[f]) || "&nbsp;"}</span>`;
+        h += `<tr><td>${i + 1}</td><td>${fmtDate(r.date)}</td><td><strong>${ed('name')}</strong></td><td class="role-badge">${ed('role')}</td><td>${ed('project')}</td><td>${ed('location')}</td><td>${ed('work')}</td>
+          <td class="no-print"><span class="del-btn" onclick="delLocRec('${r.date}','${r.id}')">✕</span></td></tr>`;
+      });
+      document.getElementById("recordsTable").innerHTML = h + `</tbody></table>`;
+    }
+
+    function editLocRec(date, id, field) {
+      const rec = (locLog[date] || []).find(x => x.id === id);
+      if (!rec) return;
+      const v = prompt(`Edit ${field.toUpperCase()}:`, rec[field]);
+      if (v !== null && (v.trim() !== "" || field === "project" || field === "work")) {
+        rec[field] = v.trim();
+        saveLocLog(); refreshLocLists(); renderLocRecords();
+      }
+    }
+
+    function delLocRec(date, id) {
+      const rec = (locLog[date] || []).find(x => x.id === id);
+      if (!rec) return;
+      if (confirm(`Delete ${rec.name} (${fmtDate(date)}, ${rec.location})?`)) {
+        locLog[date] = locLog[date].filter(x => x.id !== id);
+        if (!locLog[date].length) delete locLog[date];
+        saveLocLog(); refreshLocLists(); renderLocRecords();
+        showToast("Record deleted.");
+      }
+    }
+
+    function clearLocFilters() {
+      ["fMonth", "fDay", "fName", "fWork"].forEach(id => document.getElementById(id).value = "");
+      document.getElementById("fLoc").value = "ALL";
+      document.getElementById("fRole").value = "ALL";
+      renderLocRecords();
+    }
+
+    function renderLocMatrix() {
+      const mk = document.getElementById("mxMonth").value;
+      const box = document.getElementById("matrixTable");
+      if (!mk) { box.innerHTML = ""; return; }
+      const [y, m] = mk.split("-").map(Number);
+      const days = new Date(y, m, 0).getDate();
+      const recs = allLocRecords().filter(r => r.date.startsWith(mk));
+      if (!recs.length) { box.innerHTML = `<div style="padding:20px;text-align:center;">No records for this month.</div>`; return; }
+
+      const emp = {};
+      recs.forEach(r => {
+        const k = r.name.toLowerCase() + "|" + r.role.toLowerCase();
+        if (!emp[k]) emp[k] = { name: r.name, role: r.role, days: {} };
+        const d = parseInt(r.date.split("-")[2], 10);
+        if (!emp[k].days[d]) emp[k].days[d] = [];
+        emp[k].days[d].push(r);
+      });
+      const list = Object.values(emp).sort((a, b) => a.role.localeCompare(b.role) || a.name.localeCompare(b.name));
+
+      let h = `<table class="matrix"><thead><tr><th class="idc">S No.</th><th class="idc">Name</th><th class="idc">Designation</th>`;
+      for (let d = 1; d <= days; d++) h += `<th>${d}</th>`;
+      h += `<th style="background:#a9d08e">Days Logged</th></tr></thead><tbody>`;
+      list.forEach((e, i) => {
+        let tot = 0;
+        h += `<tr><td>${i + 1}</td><td class="name">${esc(e.name)}</td><td class="name">${esc(e.role)}</td>`;
+        for (let d = 1; d <= days; d++) {
+          const items = e.days[d];
+          if (items) {
+            tot++;
+            const locs = [...new Set(items.map(x => x.location))].join(" / ");
+            const tip = items.map(x => `${x.location}: ${x.work || x.project}`).join("\n");
+            h += `<td class="has" title="${esc(tip)}">${esc(locs)}</td>`;
+          } else h += `<td></td>`;
+        }
+        h += `<td class="tot">${tot}</td></tr>`;
+      });
+      box.innerHTML = h + `</tbody></table>`;
+    }
+
+    async function exportLocExcel() {
+      const recs = filteredLocRecords().slice().sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+      if (!recs.length) { alert("Nothing to export."); return; }
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Location Log");
+      ws.columns = [
+        { header: "S No.", key: "n", width: 7 }, { header: "Date", key: "date", width: 13 },
+        { header: "Employee", key: "name", width: 26 }, { header: "Designation", key: "role", width: 20 },
+        { header: "Project", key: "project", width: 24 }, { header: "Location", key: "location", width: 24 },
+        { header: "Work / Task", key: "work", width: 30 }
+      ];
+      const border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+      ws.getRow(1).eachCell(c => {
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF8EA9DB' } };
+        c.font = { name: 'Calibri', size: 11, bold: true };
+        c.alignment = { horizontal: 'center', vertical: 'middle' };
+        c.border = border;
+      });
+      recs.forEach((r, i) => {
+        const row = ws.addRow({ n: i + 1, date: fmtDate(r.date), name: r.name, role: r.role, project: r.project, location: r.location, work: r.work });
+        row.eachCell(c => { c.border = border; c.font = { name: 'Calibri', size: 10 }; c.alignment = { vertical: 'middle' }; });
+      });
+      ws.views = [{ state: 'frozen', ySplit: 1 }];
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Lucky_Location_Work_Log.xlsx`);
+    }
+    
+    // NEW: Exports the Location Matrix Tab to a structured Excel Sheet
+    async function exportLocMatrixExcel() {
+      const mk = document.getElementById("mxMonth").value;
+      if (!mk) { alert("Select a month first."); return; }
+      
+      const [y, m] = mk.split("-").map(Number);
+      const days = new Date(y, m, 0).getDate();
+      const recs = allLocRecords().filter(r => r.date.startsWith(mk));
+      
+      if (!recs.length) { alert("No records for this month to export."); return; }
+
+      const emp = {};
+      recs.forEach(r => {
+        const k = r.name.toLowerCase() + "|" + r.role.toLowerCase();
+        if (!emp[k]) emp[k] = { name: r.name, role: r.role, days: {} };
+        const d = parseInt(r.date.split("-")[2], 10);
+        if (!emp[k].days[d]) emp[k].days[d] = [];
+        emp[k].days[d].push(r);
+      });
+      const list = Object.values(emp).sort((a, b) => a.role.localeCompare(b.role) || a.name.localeCompare(b.name));
+
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Location Matrix");
+      
+      let cols = [
+        { header: "S No.", key: "sno", width: 8 },
+        { header: "Name", key: "name", width: 25 },
+        { header: "Designation", key: "role", width: 20 }
+      ];
+      for (let d = 1; d <= days; d++) {
+        cols.push({ header: String(d), key: "d" + d, width: 14 });
+      }
+      cols.push({ header: "Days Logged", key: "total", width: 14 });
+      ws.columns = cols;
+
+      const border = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+      };
+
+      ws.getRow(1).height = 25;
+      ws.getRow(1).eachCell((c, colNum) => {
+        c.border = border;
+        c.font = { name: 'Calibri', size: 10, bold: true };
+        c.alignment = { horizontal: 'center', vertical: 'middle' };
+        if (colNum <= 3) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF8EA9DB' } }; 
+        else if (colNum <= 3 + days) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } }; 
+        else c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFA9D08E' } }; 
+      });
+
+      list.forEach((e, i) => {
+        let rowData = { sno: i + 1, name: e.name, role: e.role };
+        let tot = 0;
+        
+        for (let d = 1; d <= days; d++) {
+          if (e.days[d]) {
+            tot++;
+            rowData["d" + d] = [...new Set(e.days[d].map(x => x.location))].join(" / ");
+          } else {
+            rowData["d" + d] = "";
+          }
+        }
+        rowData.total = tot;
+        
+        const row = ws.addRow(rowData);
+        row.height = 20;
+        
+        row.eachCell((c, colNum) => {
+          c.border = border;
+          c.font = { name: 'Calibri', size: 10 };
+          c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+          
+          if (colNum === 2 || colNum === 3) {
+            c.alignment.horizontal = 'left';
+          }
+          
+          if (colNum > 3 && colNum <= 3 + days && c.value) {
+            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6FFFA' } }; 
+          }
+          if (colNum === 3 + days + 1) {
+            c.font.bold = true;
+            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFA9D08E' } }; 
+          }
+        });
+      });
+
+      ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 1 }];
+      const buf = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Lucky_Location_Matrix_${mk}.xlsx`);
+    }
+
+    function exportLocJSON() {
+      saveAs(new Blob([JSON.stringify(locLog, null, 2)], { type: "application/json" }), `Lucky_Location_Log_Backup_${new Date().toISOString().split('T')[0]}.json`);
+    }
+
+    function importLocJSON(ev) {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (typeof data !== "object" || Array.isArray(data)) throw new Error("bad");
+          if (!confirm("Merge this backup into the current log?")) return;
+          Object.keys(data).forEach(d => {
+            if (!Array.isArray(data[d])) return;
+            if (!locLog[d]) locLog[d] = [];
+            const have = new Set(locLog[d].map(x => x.id));
+            data[d].forEach(r => { if (!have.has(r.id)) locLog[d].push(r); });
+          });
+          saveLocLog(); refreshLocLists(); renderLocRecords();
+          showToast("Backup restored.");
+        } catch (err) { alert("Invalid backup file."); }
+      };
+      reader.readAsText(file);
+      ev.target.value = "";
+    }
+
+    // ================= INITIALIZATION =================
+    window.addEventListener("DOMContentLoaded", () => {
+      checkAuthStatus();
+      
+      // Init Attendance (Tab 1) Demo Data
+      document.getElementById("attRawInput").value = `Company Lucky Hardware 
+Date 04-10-2026 
+Project washroom
+Location Mine office 
+POB 4
+
+1. Ashok Kumar Sup
+2. Niaz Gull HSE
+3. Imran Civil Engineer
+4. Partab USL`;
+      processAttDaily();
+
+      // Init Location (Tab 3,4,5) defaults
+      document.getElementById("mDate").value = new Date().toISOString().split('T')[0];
+      refreshLocLists();
+    });
+
+  </script>
+</body>
+</html>
