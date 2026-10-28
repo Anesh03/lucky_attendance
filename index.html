@@ -314,11 +314,43 @@
   <!-- ================= TAB 5: LOCATION MATRIX ================= -->
   <div id="locMatrixTab" class="tab-content">
     <div class="app-container" style="max-width:100%;">
-      <h3>Monthly Location Matrix (Employee × Day)</h3>
-      <div class="btn-row">
-        <input type="month" id="mxMonth" class="admin-input" onchange="renderLocMatrix()">
-        <button class="btn-warning" onclick="exportLocMatrixExcel()">📊 Export .xlsx</button>
-        <button class="btn-primary" onclick="window.print()">🖨️ Print / Save PDF</button>
+      <div class="month-selector" style="margin-bottom:10px;">
+        <h3>Monthly Location Matrix (Employee × Day)</h3>
+        <input type="month" id="mxMonth" class="admin-input" style="font-weight: bold; font-size: 15px; padding: 6px 10px;" onchange="renderLocMatrix()">
+      </div>
+
+      <!-- FILTER & SORT BAR (Matches Attendance Tab precisely) -->
+      <div class="filter-bar">
+        <div>
+          <label>🔍 Search Name:</label>
+          <input type="text" id="mxFilterName" class="admin-input" placeholder="Type name..." oninput="renderLocMatrix()">
+        </div>
+        <div>
+          <label>🛠️ Filter Trade:</label>
+          <select id="mxFilterTrade" class="admin-select" onchange="renderLocMatrix()">
+            <option value="ALL">All Trades</option>
+          </select>
+        </div>
+        <div>
+          <label>📍 Filter Location:</label>
+          <select id="mxFilterLoc" class="admin-select" onchange="renderLocMatrix()">
+            <option value="ALL">All Locations</option>
+          </select>
+        </div>
+        <div>
+          <label>🔃 Sort By:</label>
+          <select id="mxSortBy" class="admin-select" onchange="renderLocMatrix()">
+            <option value="default">Default Order</option>
+            <option value="name_asc">Name (A ➔ Z)</option>
+            <option value="name_desc">Name (Z ➔ A)</option>
+            <option value="trade">Trade / Designation</option>
+            <option value="days_desc">Highest Attendance (Days)</option>
+          </select>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button class="btn-warning" onclick="exportLocMatrixExcel()">📊 Export True .xlsx</button>
+          <button class="btn-primary" onclick="window.print()">🖨️ Print / Save PDF</button>
+        </div>
       </div>
       <div style="font-size:12px;color:#4a5568;margin-top:8px;">Each cell shows the location. Hover a cell to see the work done there.</div>
     </div>
@@ -1317,41 +1349,107 @@
       renderLocRecords();
     }
 
+    // ================= LOCATION MATRIX LOGIC =================
+    
+    // Core engine to fetch, filter, and sort matrix records so UI & Excel match perfectly
+    function getPreparedMatrixList(mk, daysInMonth) {
+      const recs = allLocRecords().filter(r => r.date.startsWith(mk));
+      if (!recs.length) return { list: [], allTrades: [], allLocs: [] };
+
+      const emp = {};
+      const allTrades = new Set();
+      const allLocs = new Set();
+
+      recs.forEach(r => {
+        const k = r.name.toLowerCase() + "|" + r.role.toLowerCase();
+        if (!emp[k]) emp[k] = { name: r.name, role: r.role, days: {}, tot: 0, locs: new Set() };
+        const d = parseInt(r.date.split("-")[2], 10);
+        
+        if (!emp[k].days[d]) {
+          emp[k].days[d] = [];
+          emp[k].tot++; // Increment total unique days this employee worked
+        }
+        
+        emp[k].days[d].push(r);
+        emp[k].locs.add(r.location);
+        
+        allTrades.add(r.role);
+        allLocs.add(r.location);
+      });
+
+      const nameQ = (document.getElementById("mxFilterName").value || "").toLowerCase().trim();
+      const tradeQ = document.getElementById("mxFilterTrade").value || "ALL";
+      const locQ = document.getElementById("mxFilterLoc").value || "ALL";
+      const sortQ = document.getElementById("mxSortBy").value || "default";
+
+      // 1. FILTERING
+      let list = Object.values(emp).filter(e => {
+        if (nameQ && !e.name.toLowerCase().includes(nameQ)) return false;
+        if (tradeQ !== "ALL" && e.role !== tradeQ) return false;
+        if (locQ !== "ALL" && !e.locs.has(locQ)) return false;
+        return true;
+      });
+
+      // 2. SORTING
+      list.sort((a, b) => {
+        if (sortQ === "name_asc") return a.name.localeCompare(b.name);
+        if (sortQ === "name_desc") return b.name.localeCompare(a.name);
+        if (sortQ === "trade") return a.role.localeCompare(b.role) || a.name.localeCompare(b.name);
+        if (sortQ === "days_desc") return b.tot - a.tot || a.name.localeCompare(b.name);
+        // Default sorting
+        return a.role.localeCompare(b.role) || a.name.localeCompare(b.name);
+      });
+
+      return { list, allTrades: [...allTrades].sort(), allLocs: [...allLocs].sort() };
+    }
+
     function renderLocMatrix() {
       const mk = document.getElementById("mxMonth").value;
       const box = document.getElementById("matrixTable");
       if (!mk) { box.innerHTML = ""; return; }
+      
       const [y, m] = mk.split("-").map(Number);
       const days = new Date(y, m, 0).getDate();
-      const recs = allLocRecords().filter(r => r.date.startsWith(mk));
-      if (!recs.length) { box.innerHTML = `<div style="padding:20px;text-align:center;">No records for this month.</div>`; return; }
+      
+      const { list, allTrades, allLocs } = getPreparedMatrixList(mk, days);
+      
+      // Prevent dropdown resets if user is just filtering
+      const tradeSel = document.getElementById("mxFilterTrade");
+      if(tradeSel.options.length <= 1 || tradeSel.dataset.month !== mk) {
+         tradeSel.dataset.month = mk;
+         const curTrade = tradeSel.value;
+         tradeSel.innerHTML = `<option value="ALL">All Trades</option>` + allTrades.map(t => `<option value="${esc(t)}" ${t===curTrade?'selected':''}>${esc(t)}</option>`).join("");
+      }
 
-      const emp = {};
-      recs.forEach(r => {
-        const k = r.name.toLowerCase() + "|" + r.role.toLowerCase();
-        if (!emp[k]) emp[k] = { name: r.name, role: r.role, days: {} };
-        const d = parseInt(r.date.split("-")[2], 10);
-        if (!emp[k].days[d]) emp[k].days[d] = [];
-        emp[k].days[d].push(r);
-      });
-      const list = Object.values(emp).sort((a, b) => a.role.localeCompare(b.role) || a.name.localeCompare(b.name));
+      const locSel = document.getElementById("mxFilterLoc");
+      if(locSel.options.length <= 1 || locSel.dataset.month !== mk) {
+         locSel.dataset.month = mk;
+         const curLoc = locSel.value;
+         locSel.innerHTML = `<option value="ALL">All Locations</option>` + allLocs.map(l => `<option value="${esc(l)}" ${l===curLoc?'selected':''}>${esc(l)}</option>`).join("");
+      }
 
+      if (!list.length) { box.innerHTML = `<div style="padding:20px;text-align:center;">No records match your filters for this month.</div>`; return; }
+
+      const locQ = document.getElementById("mxFilterLoc").value;
+      
       let h = `<table class="matrix"><thead><tr><th class="idc">S No.</th><th class="idc">Name</th><th class="idc">Designation</th>`;
       for (let d = 1; d <= days; d++) h += `<th>${d}</th>`;
       h += `<th style="background:#a9d08e">Days Logged</th></tr></thead><tbody>`;
+      
       list.forEach((e, i) => {
-        let tot = 0;
         h += `<tr><td>${i + 1}</td><td class="name">${esc(e.name)}</td><td class="name">${esc(e.role)}</td>`;
         for (let d = 1; d <= days; d++) {
           const items = e.days[d];
           if (items) {
-            tot++;
             const locs = [...new Set(items.map(x => x.location))].join(" / ");
             const tip = items.map(x => `${x.location}: ${x.work || x.project}`).join("\n");
-            h += `<td class="has" title="${esc(tip)}">${esc(locs)}</td>`;
-          } else h += `<td></td>`;
+            let bg = (locQ !== "ALL" && items.some(x => x.location === locQ)) ? "background:#c6f6d5;" : "";
+            h += `<td class="has" style="${bg}" title="${esc(tip)}">${esc(locs)}</td>`;
+          } else {
+            h += `<td></td>`;
+          }
         }
-        h += `<td class="tot">${tot}</td></tr>`;
+        h += `<td class="tot">${e.tot}</td></tr>`;
       });
       box.innerHTML = h + `</tbody></table>`;
     }
@@ -1382,27 +1480,17 @@
       const buf = await wb.xlsx.writeBuffer();
       saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Lucky_Location_Work_Log.xlsx`);
     }
-    
-    // NEW: Exports the Location Matrix Tab to a structured Excel Sheet
+
+    // MATRIX EXPORT (Includes all filters and UI colors)
     async function exportLocMatrixExcel() {
       const mk = document.getElementById("mxMonth").value;
       if (!mk) { alert("Select a month first."); return; }
       
       const [y, m] = mk.split("-").map(Number);
       const days = new Date(y, m, 0).getDate();
-      const recs = allLocRecords().filter(r => r.date.startsWith(mk));
       
-      if (!recs.length) { alert("No records for this month to export."); return; }
-
-      const emp = {};
-      recs.forEach(r => {
-        const k = r.name.toLowerCase() + "|" + r.role.toLowerCase();
-        if (!emp[k]) emp[k] = { name: r.name, role: r.role, days: {} };
-        const d = parseInt(r.date.split("-")[2], 10);
-        if (!emp[k].days[d]) emp[k].days[d] = [];
-        emp[k].days[d].push(r);
-      });
-      const list = Object.values(emp).sort((a, b) => a.role.localeCompare(b.role) || a.name.localeCompare(b.name));
+      const { list } = getPreparedMatrixList(mk, days);
+      if (!list.length) { alert("No records match your filters to export."); return; }
 
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet("Location Matrix");
@@ -1430,9 +1518,9 @@
         c.border = border;
         c.font = { name: 'Calibri', size: 10, bold: true };
         c.alignment = { horizontal: 'center', vertical: 'middle' };
-        if (colNum <= 3) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF8EA9DB' } }; 
-        else if (colNum <= 3 + days) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } }; 
-        else c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFA9D08E' } }; 
+        if (colNum <= 3) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF8EA9DB' } }; // Blue
+        else if (colNum <= 3 + days) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } }; // Yellow
+        else c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFA9D08E' } }; // Green
       });
 
       list.forEach((e, i) => {
@@ -1462,7 +1550,7 @@
           }
           
           if (colNum > 3 && colNum <= 3 + days && c.value) {
-            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6FFFA' } }; 
+            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6FFFA' } }; // Light mint for present days
           }
           if (colNum === 3 + days + 1) {
             c.font.bold = true;
